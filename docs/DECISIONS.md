@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Status | Accepted through M2 |
-| Version | 0.3.0 |
+| Status | Accepted through M3 |
+| Version | 0.4.0 |
 | Date | 2026-09-15 |
 
 ## ADR-001: Python environment
@@ -58,4 +58,11 @@
 
 - Decision: freeze protocol `m2-v1` with three consecutive 28-day development folds and one locked 28-day final fold; segments are reporting-only, target features have minimum lag one, transformations fit on fold training data only, and Seasonal Naive forecasts recurse beyond the available cutoff.
 - Reason: fixed dates and feature-availability rules prevent random-split bias, target leakage, and accidental use of actual evaluation values at later horizons.
-- Consequence: `configs/evaluation.yaml` is the versioned source of truth. The locked final targets remain inaccessible until the champion configuration is frozen; Gate B remains pending until M3 records reproducible Seasonal Naive results.
+- Consequence: `configs/evaluation.yaml` is the versioned source of truth. The locked final targets remain inaccessible until the champion configuration is frozen. M3 subsequently satisfied Gate B with reproducible Seasonal Naive results.
+
+## ADR-010: Baseline implementation and metric aggregation
+
+- Decision: use recursive last-observation and Seasonal Naive forecasts, plus Croston-SBA with fixed alpha `0.10`; initialize Croston from the frozen active-start date so pre-launch zeros do not distort the event interval.
+- Decision: compute RMSSE scale from the first positive training observation, use the final 28 training days of observed revenue as the WRMSSE weight, average per-series MASE, and pool errors for WAPE and normalized bias. Positive bias means overforecasting.
+- Reason: these definitions match protocol `m2-v1`, remain meaningful for intermittent demand, and expose zero denominators instead of silently replacing them.
+- Consequence: run `baseline-f0244fc6ddec` is the M4 comparison reference. Croston-SBA is the strongest development baseline; no final champion is selected until challenger and decision-layer evidence are available.

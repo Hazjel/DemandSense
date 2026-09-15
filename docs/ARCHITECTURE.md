@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Status | Accepted for implementation |
-| Version | 0.3.0 |
+| Status | Implemented through M3 |
+| Version | 0.4.0 |
 | Date | 2026-09-15 |
 
 ## 1. Architectural goals
@@ -90,6 +90,12 @@ predict(history, future_known_data, horizon, config) -> forecast_table
 ```
 
 Zero-shot foundation models may implement `fit` as model loading and validation, but must still record checkpoint and configuration versions.
+
+M3 implements this layer with a deterministic baseline run ID and four core
+artifacts: development predictions, per-series metrics, aggregate metrics, and a
+model summary. Core artifact checksums exclude runtime timestamps so independent
+runs can be compared directly. Baseline execution is hard-limited to folds with
+role `development`; the locked-final targets are not collected.
 
 ### 3.3 Decision layer
 

@@ -2,7 +2,7 @@
 
 DemandSense is a leakage-safe demand-forecasting and inventory decision-support project. The portfolio release uses M5 data, compares simple baselines, XGBoost, and a pretrained time-series foundation model, then evaluates the downstream inventory implications.
 
-**M0 through M2 are complete; M3 (baseline suite) is next.** The full eligible `CA_1` release population, stratified development cohort, four temporal folds, segmentation, metrics, and leakage policies are frozen. Gate B remains pending until M3 produces reproducible Seasonal Naive benchmark results. Research claims about Indonesian UMKM remain explicitly out of scope until a separate dataset and protocol are available.
+**M0 through M3 and Gate B are complete; M4 (challenger models) is next.** Four mandatory baselines have been evaluated reproducibly over all three development folds and 3,044 eligible `CA_1` series. The locked-final targets remain untouched. Research claims about Indonesian UMKM remain explicitly out of scope until a separate dataset and protocol are available.
 
 Current schema `1.2.0` datasets:
 
@@ -97,6 +97,22 @@ development folds, one locked final fold, reporting-only segments, lagged target
 features, fold-local transforms, lagged-only future prices, and recursive
 Seasonal Naive behavior.
 
+## M3 baseline suite
+
+```powershell
+# Run all four baselines on the full release population and development folds
+.\.venv\Scripts\python.exe -m demandsense run-baselines --config configs/baselines.yaml --output artifacts/evaluation/m3
+
+# Re-run independently and require identical core artifact checksums
+.\.venv\Scripts\python.exe -m demandsense verify-baselines --config configs/baselines.yaml --reference artifacts/evaluation/m3 --output artifacts/evaluation/m3-reproduction
+```
+
+Run `baseline-f0244fc6ddec` evaluates last observation, Seasonal Naive lag 7,
+Seasonal Naive lag 28, and Croston-SBA. Croston-SBA is the strongest development
+baseline with mean WRMSSE `0.8371`; this is a baseline result, not the final
+champion decision. Generated predictions and metric tables remain local under
+`artifacts/` and are excluded from Git.
+
 ## Docker
 
 The API and dashboard use the same image but run as separate Compose services:
@@ -111,4 +127,4 @@ docker compose up --build
 
 ## Documentation
 
-Start with [`docs/PROJECT_CHARTER.md`](docs/PROJECT_CHARTER.md), then read [`docs/SCOPE.md`](docs/SCOPE.md), [`docs/DATA_CONTRACT.md`](docs/DATA_CONTRACT.md), [`docs/M2_EXECUTION_REPORT.md`](docs/M2_EXECUTION_REPORT.md), and [`docs/EXPERIMENT_PLAN.md`](docs/EXPERIMENT_PLAN.md).
+Start with [`docs/PROJECT_CHARTER.md`](docs/PROJECT_CHARTER.md), then read [`docs/SCOPE.md`](docs/SCOPE.md), [`docs/DATA_CONTRACT.md`](docs/DATA_CONTRACT.md), [`docs/M3_EXECUTION_REPORT.md`](docs/M3_EXECUTION_REPORT.md), and [`docs/EXPERIMENT_PLAN.md`](docs/EXPERIMENT_PLAN.md).

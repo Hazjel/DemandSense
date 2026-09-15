@@ -1,0 +1,8 @@
+suite_version: m3-v1
+protocol_path: configs/evaluation.yaml
+fold_scope: development_only
+locked_final_target_access: false
+
+croston:
+  variant: sba
+  alpha: 0.10

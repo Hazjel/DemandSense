@@ -14,6 +14,10 @@ from demandsense.evaluation.protocol import (
     load_evaluation_protocol,
     validate_evaluation_protocol,
 )
+from demandsense.evaluation.runner import (
+    run_baseline_suite,
+    verify_baseline_reproducibility,
+)
 from demandsense.spikes import format_result, spike_chronos, spike_xgboost
 
 
@@ -36,6 +40,17 @@ def _parser() -> argparse.ArgumentParser:
     freeze_evaluation = commands.add_parser("freeze-evaluation")
     freeze_evaluation.add_argument("--config", default="configs/evaluation.yaml")
     freeze_evaluation.add_argument("--output", default="artifacts/evaluation/m2")
+
+    run_baselines = commands.add_parser("run-baselines")
+    run_baselines.add_argument("--config", default="configs/baselines.yaml")
+    run_baselines.add_argument("--output", default="artifacts/evaluation/m3")
+
+    verify_baselines = commands.add_parser("verify-baselines")
+    verify_baselines.add_argument("--config", default="configs/baselines.yaml")
+    verify_baselines.add_argument("--reference", default="artifacts/evaluation/m3")
+    verify_baselines.add_argument(
+        "--output", default="artifacts/evaluation/m3-reproduction"
+    )
 
     xgboost = commands.add_parser("spike-xgboost")
     xgboost.add_argument("--device", choices=["cpu", "cuda"], default="cuda")
@@ -70,6 +85,15 @@ def main() -> None:
                 freeze_evaluation_protocol(args.config, args.output)
             )
         )
+    elif args.command == "run-baselines":
+        print(format_result(run_baseline_suite(args.config, args.output)))
+    elif args.command == "verify-baselines":
+        report = verify_baseline_reproducibility(
+            args.config, args.reference, args.output
+        )
+        print(format_result(report))
+        if report["status"] != "passed":
+            raise SystemExit(1)
     elif args.command == "spike-xgboost":
         print(format_result(spike_xgboost(device=args.device)))
     elif args.command == "spike-chronos":
