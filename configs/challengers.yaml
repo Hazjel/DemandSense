@@ -1,0 +1,43 @@
+suite_version: m4-v1
+protocol_path: configs/evaluation.yaml
+fold_scope: development_only
+locked_final_target_access: false
+
+baseline_reference:
+  directory: artifacts/evaluation/m3
+  run_id: baseline-f0244fc6ddec
+  aggregate_metrics_checksum: 7d02226672fbf2d1c923d3650caba48e26f05fff6849a2e9e0c7a42dbc980f55
+  per_series_metrics_checksum: 7ea6904901b60ebfa3d5933e9eaa9abe1b1619397bc7702303e2b6c24e57c0b3
+
+xgboost:
+  device: cuda
+  training_window_days: 730
+  num_boost_round: 200
+  max_depth: 8
+  learning_rate: 0.05
+  min_child_weight: 5.0
+  subsample: 0.80
+  colsample_bytree: 0.80
+  reg_lambda: 1.0
+  max_bin: 256
+  random_seed: 42
+  feature_sets:
+    - xgb_lag
+    - xgb_calendar
+    - xgb_full
+
+chronos:
+  model_id: amazon/chronos-bolt-small
+  revision: 772f3d25d38aec6d914c8949dab4462e2d46f5d8
+  device: cuda
+  context_length: 512
+  batch_size: 8
+  point_forecast: mean
+  quantile_levels: [0.10, 0.50, 0.90]
+  quantile_crossing_policy: sort
+  local_files_only: true
+
+statistics:
+  bootstrap_seed: 42
+  bootstrap_iterations: 2000
+  confidence_level: 0.95

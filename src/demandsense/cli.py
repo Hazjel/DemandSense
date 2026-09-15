@@ -9,6 +9,7 @@ import polars as pl
 from demandsense.config import load_config
 from demandsense.data.m5 import M5Adapter
 from demandsense.data.validation import validate_canonical
+from demandsense.evaluation.challengers import run_challenger_suite
 from demandsense.evaluation.protocol import (
     freeze_evaluation_protocol,
     load_evaluation_protocol,
@@ -52,6 +53,12 @@ def _parser() -> argparse.ArgumentParser:
         "--output", default="artifacts/evaluation/m3-reproduction"
     )
 
+    run_challengers = commands.add_parser("run-challengers")
+    run_challengers.add_argument("--config", default="configs/challengers.yaml")
+    run_challengers.add_argument("--output", default="artifacts/evaluation/m4")
+    run_challengers.add_argument("--series-limit", type=int)
+    run_challengers.add_argument("--num-boost-round", type=int)
+
     xgboost = commands.add_parser("spike-xgboost")
     xgboost.add_argument("--device", choices=["cpu", "cuda"], default="cuda")
 
@@ -94,6 +101,17 @@ def main() -> None:
         print(format_result(report))
         if report["status"] != "passed":
             raise SystemExit(1)
+    elif args.command == "run-challengers":
+        print(
+            format_result(
+                run_challenger_suite(
+                    args.config,
+                    args.output,
+                    series_limit=args.series_limit,
+                    num_boost_round=args.num_boost_round,
+                )
+            )
+        )
     elif args.command == "spike-xgboost":
         print(format_result(spike_xgboost(device=args.device)))
     elif args.command == "spike-chronos":
