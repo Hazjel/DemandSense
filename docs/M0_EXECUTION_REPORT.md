@@ -1,5 +1,8 @@
 # DemandSense M0 Execution Report
 
+> Historical M0 closure record. M1 later regenerated all profiles under schema
+> `1.1.0`; current dataset identifiers are recorded in `M1_EXECUTION_REPORT.md`.
+
 | Field | Value |
 |---|---|
 | Status | Complete |

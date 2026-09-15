@@ -12,7 +12,7 @@ from demandsense import __version__
 
 app = FastAPI(title="DemandSense API", version=__version__)
 DEFAULT_DATASET_METADATA_PATH = Path(
-    "data/processed/m5/smoke/dataset_metadata.json"
+    "data/processed/m5/release/dataset_metadata.json"
 )
 
 
@@ -40,7 +40,7 @@ def metadata() -> dict[str, str | int]:
     dataset = _load_dataset_metadata()
     response: dict[str, str | int] = {
         "project": "DemandSense",
-        "stage": "M0-complete",
+        "stage": "M1-complete",
         "active_model": "not_selected",
         "dataset_version": "not_prepared",
         "dataset_profile": "not_available",

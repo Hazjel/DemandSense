@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Status | Accepted for M0 |
-| Version | 0.1.0 |
+| Status | Accepted through M1 |
+| Version | 0.2.0 |
 | Date | 2026-09-15 |
 
 ## ADR-001: Python environment
@@ -41,3 +41,15 @@
 - Decision: `CA_1`, seed `42`, 28-day horizon, and the documented zero-sales segmentation thresholds.
 - Reason: a deterministic store and seed avoid choosing the benchmark after observing model results.
 - Consequence: the release benchmark includes all eligible `CA_1` series; smaller cohorts are engineering-only.
+
+## ADR-007: Eligibility and cohort reference window
+
+- Decision: determine eligibility and demand segment using data through `2016-04-24`, excluding the final 28 days; require positive reference-period sales and at least 112 active days.
+- Reason: cohort construction must not use the final forecast window, while newly introduced items lack sufficient history for the planned evaluation.
+- Consequence: two of 3,049 `CA_1` series are excluded for insufficient active history; sparsity and inactivity alone remain warnings.
+
+## ADR-008: Development cohort selection
+
+- Decision: select 100 eligible series per fast, medium, and intermittent segment using deterministic SHA-256 ranking with seed `42`.
+- Reason: balanced development feedback must retain difficult intermittent demand without making sampled results the release benchmark.
+- Consequence: the 300-series cohort is frozen by its versioned manifest checksum; reported final comparisons still use all 3,047 eligible release series.

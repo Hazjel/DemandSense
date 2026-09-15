@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active from project start |
-| Version | 0.4.0 |
+| Version | 0.5.0 |
 | Date | 2026-09-15 |
 | Review cadence | Weekly and at every stage gate |
 
@@ -18,10 +18,10 @@
 | ID | Risk | Probability | Impact | Trigger / early signal | Prevention / mitigation | Contingency | Status |
 |---|---|---|---|---|---|---|---|
 | R01 | Target leakage in lag, rolling, imputation, or segmentation logic | Medium | Critical | Validation score is implausibly high; performance collapses on later folds | Shift target features; fit transforms per fold; add cutoff tests; review feature timestamps | Remove affected features, invalidate runs, and rerun all comparisons | Open |
-| R02 | Full-store M5 processing exceeds RAM or practical runtime despite sufficient disk | Medium | High | Melt/join process swaps, crashes, or exceeds agreed runtime | Filter the selected store early; use column pruning, Parquet, chunking, or lazy queries; benchmark the release profile | Use smaller batches, change engine, or retain full data while processing partitions sequentially | Monitoring |
+| R02 | Full-store M5 processing exceeds RAM or practical runtime despite sufficient disk | Low | High | Melt/join process swaps, crashes, or exceeds agreed runtime | M1 release preparation completed 5.91 million rows in approximately 10.23 seconds using early store filtering, Polars, and Parquet | Retain partitioned-processing fallback if later feature generation increases memory materially | Mitigated |
 | R03 | Foundation-model dependency, checkpoint, or batch size is incompatible with available GPU/VRAM | Low | High | Installation, out-of-memory, or inference failure in later full-store runs | M0 Chronos-Bolt Small inference passed on CUDA; retain batch calibration and pinned environment | Reduce batch size, use CPU fallback, or document omission of the affected stretch model | Mitigated |
 | R04 | Public benchmark overlap inflates foundation-model results | Medium | High | Model reports unexpectedly dominant zero-shot performance | Treat M5 as engineering benchmark; disclose possible pretraining overlap; include simple baselines and failure analysis | Avoid novelty claims; later validate on private prospective UMKM data | Monitoring |
-| R05 | Development cohort favors easy or high-volume series | Low | High | Cohort results differ materially from the full-store development results | Freeze a stratified cohort and seed; retain intermittent series; require reported comparisons on the full release population | Treat cohort findings as engineering-only and base selection on full-population runs | Monitoring |
+| R05 | Development cohort favors easy or high-volume series | Low | High | Cohort results differ materially from the full-store development results | M1 freezes 100 fast, 100 medium, and 100 intermittent series using seed 42 and deterministic within-segment ranking; release reporting remains full-population | Treat cohort findings as engineering-only and base selection on full-population runs | Mitigated |
 | R06 | M5 sales zeros are mistaken for zero demand despite unknown stockouts | High | High | Inventory conclusions rely on every zero being true no-demand | State observed-sales limitation; avoid inferred stockout labels; use sensitivity analysis | Limit claims to observed sales and simulated inventory behavior | Accepted |
 | R07 | Forecast metric improves but inventory decisions worsen | Medium | High | Challenger wins WRMSSE but has worse stockout/cost metrics | Evaluate decision metrics before champion selection; track bias and quantiles | Use baseline or segment-specific champion; revise decision policy, not test data | Open |
 | R08 | Inventory conclusions depend on arbitrary cost assumptions | High | High | Model ranking flips under modest cost changes | Version assumptions and evaluate balanced, shortage-sensitive, and holding-sensitive scenarios | Report conditional conclusions instead of one universal saving estimate | Open |

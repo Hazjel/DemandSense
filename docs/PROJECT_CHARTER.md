@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Status | M0 complete; M1 ready |
-| Version | 0.5.0 |
+| Status | M1 complete; M2 ready |
+| Version | 0.6.0 |
 | Date | 2026-09-15 |
 | Owner | Repository owner (personal name pending for public release) |
 | Delivery target | Portfolio MVP in 8 weeks, with 2 optional buffer weeks |
@@ -102,7 +102,7 @@ The MVP is complete when all of the following are true:
 | Milestone | Target | Exit condition |
 |---|---:|---|
 | M0: Planning and technical spike | Pre-week / 1-2 days | **Complete:** GPU inference and the real-data M5 smoke pipeline pass |
-| M1: Validated dataset | Week 1 | Canonical dataset and validation report available |
+| M1: Validated dataset | Week 1 | **Complete:** full eligible dataset, frozen development cohort, and quality reports available |
 | M2: Evaluation design | Week 2 | Temporal folds and segment definitions frozen |
 | M3: Baseline suite | Week 3 | Naive, statistical, and intermittent baselines evaluated |
 | M4: Challenger models | Weeks 4-5 | Global ML and at least one foundation model evaluated |

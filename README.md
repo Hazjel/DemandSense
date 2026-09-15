@@ -2,9 +2,13 @@
 
 DemandSense is a leakage-safe demand-forecasting and inventory decision-support project. The portfolio release uses M5 data, compares simple baselines, XGBoost, and a pretrained time-series foundation model, then evaluates the downstream inventory implications.
 
-**M0 and Gate A are complete; M1 (full dataset validation) is next.** The real M5 smoke cohort has passed the canonical data checks. Research claims about Indonesian UMKM remain explicitly out of scope until a separate dataset and protocol are available.
+**M0, Gate A, and M1 are complete; M2 (evaluation design) is next.** The full eligible `CA_1` release population and the frozen stratified development cohort pass raw, canonical, manifest, and quality validation. Research claims about Indonesian UMKM remain explicitly out of scope until a separate dataset and protocol are available.
 
-The accepted smoke dataset is versioned as `m5-smoke-9063d67fc1f5` under canonical schema `1.0.0`.
+Current schema `1.1.0` datasets:
+
+- release: `m5-release-5429af493bf1` with 3,047 eligible series;
+- development: `m5-development-5651b48df83f` with 300 frozen series;
+- smoke: `m5-smoke-5d3455693411` with 30 fixed series.
 
 ## Prerequisites
 
@@ -58,6 +62,12 @@ Required files:
 # Prepare the fixed smoke cohort as canonical Parquet
 .\.venv\Scripts\python.exe -m demandsense prepare-m5 --config configs/smoke.yaml
 
+# Prepare the stratified 300-series development cohort
+.\.venv\Scripts\python.exe -m demandsense prepare-m5 --config configs/base.yaml
+
+# Prepare the full eligible CA_1 release population
+.\.venv\Scripts\python.exe -m demandsense prepare-m5 --config configs/portfolio.yaml
+
 # Revalidate a generated canonical table
 .\.venv\Scripts\python.exe -m demandsense validate-data --path data/processed/m5/smoke/demand_daily.parquet
 
@@ -68,8 +78,9 @@ Required files:
 .\.venv\Scripts\python.exe -m demandsense spike-chronos
 ```
 
-The smoke output includes `dataset_metadata.json`, a versioned series manifest,
-source checksums, and canonical validation evidence under `data/processed/m5/smoke/`.
+Each profile output includes `dataset_metadata.json`, `quality_report.json`, a
+versioned series manifest, source checksums, and canonical validation evidence
+under `data/processed/m5/{profile}/`.
 
 ## Docker
 
@@ -85,4 +96,4 @@ docker compose up --build
 
 ## Documentation
 
-Start with [`docs/PROJECT_CHARTER.md`](docs/PROJECT_CHARTER.md), then read [`docs/SCOPE.md`](docs/SCOPE.md), [`docs/DATA_CONTRACT.md`](docs/DATA_CONTRACT.md), and [`docs/EXPERIMENT_PLAN.md`](docs/EXPERIMENT_PLAN.md).
+Start with [`docs/PROJECT_CHARTER.md`](docs/PROJECT_CHARTER.md), then read [`docs/SCOPE.md`](docs/SCOPE.md), [`docs/DATA_CONTRACT.md`](docs/DATA_CONTRACT.md), [`docs/M1_EXECUTION_REPORT.md`](docs/M1_EXECUTION_REPORT.md), and [`docs/EXPERIMENT_PLAN.md`](docs/EXPERIMENT_PLAN.md).

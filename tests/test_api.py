@@ -36,7 +36,7 @@ def test_metadata_endpoint_reads_validated_dataset(
     assert response.status_code == 200
     assert response.json() == {
         "project": "DemandSense",
-        "stage": "M0-complete",
+        "stage": "M1-complete",
         "active_model": "not_selected",
         "dataset_version": "m5-smoke-test123",
         "dataset_profile": "smoke",

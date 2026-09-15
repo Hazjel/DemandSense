@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Accepted M0 contract |
-| Version | 1.0.0 |
+| Version | 1.1.0 |
 | Date | 2026-09-15 |
 | Canonical grain | One row per date, store, and SKU |
 
@@ -95,6 +95,16 @@ Table name: `series_manifest`
 | `cohort_role` | One or more of `smoke`, `development`, or `release` |
 | `included` | Whether series is in the frozen release population |
 | `exclusion_reason` | Reason when excluded |
+| `eligible` | Whether the series passes frozen history and activity rules |
+| `reference_end_date` | Last date allowed to define eligibility and cohort segment |
+| `reference_history_days` | Calendar rows available through the reference end |
+| `active_start_date` | First positive sale or available price |
+| `active_history_days` | Days from active start through the reference end |
+| `last_positive_date` | Last positive sale within the reference window |
+| `trailing_zero_days` | Days since the last positive sale at the reference end |
+| `total_sales` | Observed units sold within the reference window |
+| `missing_price_ratio` | Missing-price ratio across the full reference window |
+| `active_missing_price_ratio` | Missing-price ratio on or after active start |
 
 ### 5.2 Forecast output
 
@@ -161,6 +171,12 @@ For M5, actual inventory position is unavailable. The simulator must initialize 
 
 Warnings are reported and investigated; they are not silently imputed away.
 
+M1 warning thresholds are configuration-controlled: 25% active global missing
+price, 75% active per-series missing price, zero runs longer than 84 days,
+inactive tails longer than 84 days, quantities above the 99.9th percentile, and
+absolute week-to-week price changes greater than 100%. Warnings do not change a
+passing status unless a blocking rule also fails.
+
 ## 7. Missing-value policy
 
 - Missing sales rows are not automatically equivalent to zero sales.
@@ -200,7 +216,9 @@ row_count
 validation_status
 ```
 
-The record is persisted as `dataset_metadata.json`. M5 version identifiers use
+The record is persisted as `dataset_metadata.json`, while detailed blocking checks,
+raw-source checks, profiles, and investigated warnings are persisted as
+`quality_report.json`. M5 version identifiers use
 `m5-{profile}-{12-character digest}`, where the digest covers schema and adapter
 versions, source checksums, selected store, cohort settings, seed, and segmentation
 thresholds. The identifier therefore remains stable when the same inputs and

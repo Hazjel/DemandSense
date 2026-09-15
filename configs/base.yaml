@@ -20,6 +20,14 @@ segmentation:
   fast_max_zero_ratio: 0.20
   intermittent_min_zero_ratio: 0.60
 
+validation:
+  global_missing_price_warning_ratio: 0.25
+  series_missing_price_warning_ratio: 0.75
+  long_zero_run_warning_days: 84
+  inactive_tail_warning_days: 84
+  extreme_quantity_quantile: 0.999
+  extreme_price_change_ratio: 1.00
+
 models:
   global_model: xgboost
   xgboost_device: cuda

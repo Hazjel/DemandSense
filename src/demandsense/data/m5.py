@@ -4,19 +4,21 @@ import csv
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import polars as pl
 
 from demandsense.config import ProjectConfig
+from demandsense.data.quality import build_quality_report, validate_raw_m5
 from demandsense.data.validation import validate_canonical, validate_series_manifest
 
 ID_COLUMNS = ["id", "item_id", "dept_id", "cat_id", "store_id", "state_id"]
-SCHEMA_VERSION = "1.0.0"
-ADAPTER_VERSION = "m5-v1"
-COHORT_DEFINITION_VERSION = "zero-sales-ratio-v1"
+SCHEMA_VERSION = "1.1.0"
+ADAPTER_VERSION = "m5-v2"
+COHORT_DEFINITION_VERSION = "pretest-zero-sales-ratio-v2"
+SEGMENT_ORDER = ("fast", "medium", "intermittent")
 
 
 @dataclass(frozen=True)
@@ -83,10 +85,192 @@ class M5Adapter:
             "selection_seed": self.config.data.selection_seed,
             "cohort_definition_version": COHORT_DEFINITION_VERSION,
             "segmentation": self.config.segmentation.model_dump(mode="json"),
+            "forecast": self.config.forecast.model_dump(mode="json"),
+            "validation": self.config.validation.model_dump(mode="json"),
         }
         payload = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
         digest = hashlib.sha256(payload).hexdigest()[:12]
         return f"m5-{self.config.data.profile}-{digest}"
+
+    def _selection_score(self, sku_id: str) -> str:
+        value = (
+            f"{self.config.data.selection_seed}:"
+            f"{self.config.data.store_id}:{sku_id}"
+        )
+        return hashlib.sha256(value.encode()).hexdigest()
+
+    def _build_manifest(
+        self,
+        canonical: pl.DataFrame,
+        dataset_version: str,
+        reference_end_date: date,
+    ) -> pl.DataFrame:
+        keys = ["store_id", "sku_id"]
+        reference = canonical.filter(pl.col("date") <= reference_end_date)
+        full_history = canonical.group_by(keys).agg(
+            pl.len().alias("history_days"),
+        )
+        manifest = (
+            reference.group_by(keys)
+            .agg(
+                pl.len().alias("reference_history_days"),
+                pl.col("quantity_sold").sum().alias("total_sales"),
+                pl.col("date")
+                .filter(
+                    pl.col("unit_price").is_not_null()
+                    | (pl.col("quantity_sold") > 0)
+                )
+                .min()
+                .alias("active_start_date"),
+                pl.col("date")
+                .filter(pl.col("quantity_sold") > 0)
+                .max()
+                .alias("last_positive_date"),
+                (pl.col("quantity_sold") == 0).mean().alias("zero_sales_ratio"),
+                pl.col("unit_price").is_null().mean().alias("missing_price_ratio"),
+            )
+            .join(full_history, on=keys, how="left")
+            .with_columns(
+                (
+                    pl.lit(reference_end_date) - pl.col("active_start_date")
+                )
+                .dt.total_days()
+                .add(1)
+                .alias("active_history_days"),
+                (
+                    pl.lit(reference_end_date) - pl.col("last_positive_date")
+                )
+                .dt.total_days()
+                .alias("trailing_zero_days"),
+            )
+            .with_columns(
+                pl.when(
+                    pl.col("zero_sales_ratio")
+                    < self.config.segmentation.fast_max_zero_ratio
+                )
+                .then(pl.lit("fast"))
+                .when(
+                    pl.col("zero_sales_ratio")
+                    > self.config.segmentation.intermittent_min_zero_ratio
+                )
+                .then(pl.lit("intermittent"))
+                .otherwise(pl.lit("medium"))
+                .alias("segment"),
+                (
+                    (pl.col("total_sales") > 0)
+                    & (
+                        pl.col("active_history_days")
+                        >= self.config.forecast.minimum_history_days
+                    )
+                ).alias("eligible"),
+            )
+            .with_columns(
+                pl.when(pl.col("total_sales") <= 0)
+                .then(pl.lit("no_positive_sales_in_reference"))
+                .when(pl.col("active_start_date").is_null())
+                .then(pl.lit("no_observed_activity_in_reference"))
+                .when(
+                    pl.col("active_history_days")
+                    < self.config.forecast.minimum_history_days
+                )
+                .then(pl.lit("insufficient_active_history"))
+                .otherwise(pl.lit(None, dtype=pl.String))
+                .alias("eligibility_exclusion_reason")
+            )
+        )
+        active_price_profile = (
+            reference.join(
+                manifest.select(keys + ["active_start_date"]),
+                on=keys,
+                how="left",
+            )
+            .filter(pl.col("date") >= pl.col("active_start_date"))
+            .group_by(keys)
+            .agg(
+                pl.col("unit_price")
+                .is_null()
+                .mean()
+                .alias("active_missing_price_ratio")
+            )
+        )
+        manifest = manifest.join(active_price_profile, on=keys, how="left")
+
+        if self.config.data.profile == "development":
+            assert self.config.data.series_limit is not None
+            quota, remainder = divmod(
+                self.config.data.series_limit, len(SEGMENT_ORDER)
+            )
+            selected_parts: list[pl.DataFrame] = []
+            scored = manifest.with_columns(
+                pl.col("sku_id")
+                .map_elements(self._selection_score, return_dtype=pl.String)
+                .alias("_selection_score")
+            )
+            for index, segment_name in enumerate(SEGMENT_ORDER):
+                segment_quota = quota + (1 if index < remainder else 0)
+                selected_parts.append(
+                    scored.filter(
+                        pl.col("eligible") & (pl.col("segment") == segment_name)
+                    )
+                    .sort("_selection_score", "sku_id")
+                    .head(segment_quota)
+                    .select(keys)
+                )
+            selected = pl.concat(selected_parts).with_columns(
+                pl.lit(True).alias("_selected")
+            )
+            manifest = (
+                manifest.join(selected, on=keys, how="left")
+                .with_columns(
+                    pl.col("_selected").fill_null(False).alias("included")
+                )
+                .with_columns(
+                    pl.when(pl.col("included"))
+                    .then(pl.lit(None, dtype=pl.String))
+                    .when(~pl.col("eligible"))
+                    .then(pl.col("eligibility_exclusion_reason"))
+                    .otherwise(pl.lit("not_selected_for_development"))
+                    .alias("exclusion_reason")
+                )
+                .drop("_selected")
+            )
+        else:
+            manifest = manifest.with_columns(
+                pl.col("eligible").alias("included"),
+                pl.col("eligibility_exclusion_reason").alias("exclusion_reason"),
+            )
+
+        return (
+            manifest.with_columns(
+                pl.lit(dataset_version).alias("dataset_version"),
+                pl.lit(reference_end_date).alias("reference_end_date"),
+                pl.lit(self.config.data.selection_seed).alias("selection_seed"),
+                pl.lit(self.config.data.profile).alias("cohort_role"),
+            )
+            .select(
+                "dataset_version",
+                "store_id",
+                "sku_id",
+                "zero_sales_ratio",
+                "history_days",
+                "segment",
+                "selection_seed",
+                "cohort_role",
+                "included",
+                "exclusion_reason",
+                "eligible",
+                "reference_end_date",
+                "reference_history_days",
+                "active_start_date",
+                "active_history_days",
+                "last_positive_date",
+                "trailing_zero_days",
+                "total_sales",
+                "missing_price_ratio",
+                "active_missing_price_ratio",
+            )
+            .sort("store_id", "sku_id")
+        )
 
     def prepare(self) -> dict[str, Any]:
         files = self.discover_files()
@@ -102,10 +286,22 @@ class M5Adapter:
         )
         if not day_columns:
             raise ValueError(f"No M5 day columns found in {files.sales}")
+        raw_validation = validate_raw_m5(
+            files.sales,
+            files.calendar,
+            files.prices,
+            self.config.data.store_id,
+            day_columns,
+        )
+        if raw_validation["status"] != "passed":
+            raise ValueError(f"Raw M5 validation failed: {raw_validation}")
 
         sales = pl.scan_csv(files.sales)
         store_sales = sales.filter(pl.col("store_id") == self.config.data.store_id)
-        if self.config.data.series_limit is not None:
+        if (
+            self.config.data.profile == "smoke"
+            and self.config.data.series_limit is not None
+        ):
             selected = (
                 store_sales.select("item_id")
                 .sort("item_id")
@@ -144,7 +340,7 @@ class M5Adapter:
                 ["event_name_1", "event_name_2"], separator=" | ", ignore_nulls=True
             )
         ).otherwise(pl.lit(None, dtype=pl.String))
-        canonical = (
+        canonical_all = (
             sales_long.join(calendar, on="d", how="left")
             .join(prices, on=["store_id", "item_id", "wm_yr_wk"], how="left")
             .select(
@@ -169,53 +365,39 @@ class M5Adapter:
             .collect(engine="streaming")
         )
 
+        population_validation = validate_canonical(canonical_all).to_dict()
+        if population_validation["status"] != "passed":
+            raise ValueError(
+                f"Canonical population validation failed: {population_validation}"
+            )
+
+        max_date = canonical_all["date"].max()
+        if max_date is None:
+            raise ValueError("Canonical M5 data has no maximum date")
+        reference_end_date = max_date - timedelta(days=self.config.forecast.horizon)
+        manifest = self._build_manifest(
+            canonical_all, dataset_version, reference_end_date
+        )
+        included_keys = manifest.filter(pl.col("included")).select(
+            "store_id", "sku_id"
+        )
+        if included_keys.is_empty():
+            raise ValueError(
+                "No eligible series remain after history and cohort selection rules"
+            )
+        canonical = (
+            canonical_all.join(included_keys, on=["store_id", "sku_id"], how="inner")
+            .sort("store_id", "sku_id", "date")
+        )
         validation = validate_canonical(canonical).to_dict()
         if validation["status"] != "passed":
-            raise ValueError(f"Canonical validation failed: {validation}")
+            raise ValueError(f"Selected canonical validation failed: {validation}")
 
         output_dir = self.config.paths.processed_dir / self.config.data.profile
         output_dir.mkdir(parents=True, exist_ok=True)
         demand_path = output_dir / "demand_daily.parquet"
         canonical.write_parquet(demand_path, compression="zstd", statistics=True)
 
-        segment = (
-            pl.when(pl.col("zero_sales_ratio") < self.config.segmentation.fast_max_zero_ratio)
-            .then(pl.lit("fast"))
-            .when(
-                pl.col("zero_sales_ratio")
-                > self.config.segmentation.intermittent_min_zero_ratio
-            )
-            .then(pl.lit("intermittent"))
-            .otherwise(pl.lit("medium"))
-        )
-        manifest = (
-            canonical.group_by("store_id", "sku_id")
-            .agg(
-                (pl.col("quantity_sold") == 0).mean().alias("zero_sales_ratio"),
-                pl.len().alias("history_days"),
-            )
-            .with_columns(
-                pl.lit(dataset_version).alias("dataset_version"),
-                segment.alias("segment"),
-                pl.lit(self.config.data.selection_seed).alias("selection_seed"),
-                pl.lit(self.config.data.profile).alias("cohort_role"),
-                pl.lit(True).alias("included"),
-                pl.lit(None, dtype=pl.String).alias("exclusion_reason"),
-            )
-            .select(
-                "dataset_version",
-                "store_id",
-                "sku_id",
-                "zero_sales_ratio",
-                "history_days",
-                "segment",
-                "selection_seed",
-                "cohort_role",
-                "included",
-                "exclusion_reason",
-            )
-            .sort("store_id", "sku_id")
-        )
         manifest_validation = validate_series_manifest(manifest).to_dict()
         if manifest_validation["status"] != "passed":
             raise ValueError(f"Series manifest validation failed: {manifest_validation}")
@@ -228,6 +410,22 @@ class M5Adapter:
         source_manifest_path = output_dir / "source_manifest.json"
         source_manifest_path.write_text(
             json.dumps(source_manifest, indent=2), encoding="utf-8"
+        )
+        generated_at = datetime.fromisoformat(source_manifest["created_at"])
+        quality_report = build_quality_report(
+            canonical,
+            manifest,
+            self.config,
+            raw_validation,
+            dataset_version,
+            reference_end_date,
+            generated_at,
+        )
+        if quality_report["status"] != "passed":
+            raise ValueError(f"Dataset quality validation failed: {quality_report}")
+        quality_report_path = output_dir / "quality_report.json"
+        quality_report_path.write_text(
+            json.dumps(quality_report, indent=2), encoding="utf-8"
         )
         manifest_checksum = _sha256(manifest_path)
         dataset_metadata = {
@@ -244,6 +442,7 @@ class M5Adapter:
             "selection_seed": self.config.data.selection_seed,
             "profile": self.config.data.profile,
             "cohort_definition_version": COHORT_DEFINITION_VERSION,
+            "reference_end_date": str(reference_end_date),
             "smoke_cohort_manifest_checksum": (
                 manifest_checksum if self.config.data.profile == "smoke" else None
             ),
@@ -257,8 +456,14 @@ class M5Adapter:
             },
             "row_count": validation["row_count"],
             "series_count": validation["series_count"],
+            "population_series_count": manifest.height,
+            "eligible_series_count": manifest.filter(pl.col("eligible")).height,
+            "excluded_series_count": manifest.filter(~pl.col("eligible")).height,
             "validation_status": validation["status"],
             "manifest_validation_status": manifest_validation["status"],
+            "quality_status": quality_report["status"],
+            "quality_warning_count": quality_report["warning_count"],
+            "quality_report_checksum": _sha256(quality_report_path),
         }
         dataset_metadata_path = output_dir / "dataset_metadata.json"
         dataset_metadata_path.write_text(
@@ -271,6 +476,11 @@ class M5Adapter:
             "validation_path": str(validation_path),
             "source_manifest_path": str(source_manifest_path),
             "dataset_metadata_path": str(dataset_metadata_path),
+            "quality_report_path": str(quality_report_path),
             "validation": validation,
             "manifest_validation": manifest_validation,
+            "quality": {
+                "status": quality_report["status"],
+                "warning_count": quality_report["warning_count"],
+            },
         }

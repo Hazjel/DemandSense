@@ -51,6 +51,15 @@ class SegmentationConfig(StrictModel):
         return self
 
 
+class ValidationConfig(StrictModel):
+    global_missing_price_warning_ratio: float = Field(default=0.25, ge=0, le=1)
+    series_missing_price_warning_ratio: float = Field(default=0.75, ge=0, le=1)
+    long_zero_run_warning_days: int = Field(default=84, ge=1)
+    inactive_tail_warning_days: int = Field(default=84, ge=1)
+    extreme_quantity_quantile: float = Field(default=0.999, gt=0, lt=1)
+    extreme_price_change_ratio: float = Field(default=1.0, gt=0)
+
+
 class ModelsConfig(StrictModel):
     global_model: Literal["xgboost"] = "xgboost"
     xgboost_device: Literal["cpu", "cuda"] = "cuda"
@@ -68,6 +77,7 @@ class ProjectConfig(StrictModel):
     data: DataConfig
     forecast: ForecastConfig
     segmentation: SegmentationConfig
+    validation: ValidationConfig
     models: ModelsConfig
     runtime: RuntimeConfig
 

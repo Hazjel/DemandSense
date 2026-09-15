@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Accepted baseline scope |
-| Version | 0.3.0 |
+| Version | 0.4.0 |
 | Date | 2026-09-15 |
 
 ## 1. MVP boundary
@@ -45,6 +45,14 @@ Additional sampling rules:
 - Use the smoke and development cohorts to debug and prune configurations, but report the mandatory release benchmark on the full eligible store population.
 
 The thresholds are pragmatic MVP definitions, not universal retail classifications. A future research study may replace them with a formal ADI/CV-squared taxonomy.
+
+M1 freezes the cohort reference window at `2016-04-24`, excluding the final 28
+days from eligibility and segment assignment. A series is eligible when it has
+positive observed sales and at least 112 active days by that date. Active history
+begins at the first positive sale or first available price, whichever occurs first.
+Development selection uses seed `42` and a deterministic hash ranking within each
+segment, selecting 100 eligible series from each segment. Sparse and inactive-tail
+series remain included and are reported as warnings rather than silently removed.
 
 ## 3. Functional scope
 
