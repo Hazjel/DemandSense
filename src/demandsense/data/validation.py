@@ -15,6 +15,21 @@ REQUIRED_COLUMNS = {
     "ingested_at",
 }
 
+MANIFEST_COLUMNS = {
+    "dataset_version",
+    "store_id",
+    "sku_id",
+    "zero_sales_ratio",
+    "history_days",
+    "segment",
+    "selection_seed",
+    "cohort_role",
+    "included",
+    "exclusion_reason",
+}
+MANIFEST_NON_NULL_COLUMNS = MANIFEST_COLUMNS - {"exclusion_reason"}
+VALID_SEGMENTS = {"fast", "medium", "intermittent"}
+
 
 @dataclass(frozen=True)
 class ValidationReport:
@@ -26,6 +41,20 @@ class ValidationReport:
     duplicate_keys: int
     negative_quantity_rows: int
     null_required_rows: int
+    missing_columns: list[str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class ManifestValidationReport:
+    status: str
+    row_count: int
+    duplicate_keys: int
+    null_required_rows: int
+    invalid_segment_rows: int
+    invalid_history_rows: int
     missing_columns: list[str]
 
     def to_dict(self) -> dict[str, Any]:
@@ -70,6 +99,51 @@ def validate_canonical(frame: pl.DataFrame) -> ValidationReport:
         duplicate_keys=duplicate_keys,
         negative_quantity_rows=negative_rows,
         null_required_rows=null_required,
+        missing_columns=[],
+    )
+
+
+def validate_series_manifest(frame: pl.DataFrame) -> ManifestValidationReport:
+    missing = sorted(MANIFEST_COLUMNS.difference(frame.columns))
+    if missing:
+        return ManifestValidationReport(
+            status="failed",
+            row_count=frame.height,
+            duplicate_keys=0,
+            null_required_rows=0,
+            invalid_segment_rows=0,
+            invalid_history_rows=0,
+            missing_columns=missing,
+        )
+
+    duplicate_keys = frame.select(
+        pl.struct(["dataset_version", "store_id", "sku_id"]).is_duplicated().sum()
+    ).item()
+    null_required = frame.select(
+        pl.any_horizontal(
+            [pl.col(column).is_null() for column in MANIFEST_NON_NULL_COLUMNS]
+        ).sum()
+    ).item()
+    invalid_segments = frame.select(
+        (~pl.col("segment").is_in(sorted(VALID_SEGMENTS))).sum()
+    ).item()
+    invalid_history = frame.select((pl.col("history_days") <= 0).sum()).item()
+    passed = all(
+        value == 0
+        for value in (
+            duplicate_keys,
+            null_required,
+            invalid_segments,
+            invalid_history,
+        )
+    )
+    return ManifestValidationReport(
+        status="passed" if passed else "failed",
+        row_count=frame.height,
+        duplicate_keys=duplicate_keys,
+        null_required_rows=null_required,
+        invalid_segment_rows=invalid_segments,
+        invalid_history_rows=invalid_history,
         missing_columns=[],
     )
 

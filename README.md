@@ -4,6 +4,8 @@ DemandSense is a leakage-safe demand-forecasting and inventory decision-support 
 
 **M0 and Gate A are complete; M1 (full dataset validation) is next.** The real M5 smoke cohort has passed the canonical data checks. Research claims about Indonesian UMKM remain explicitly out of scope until a separate dataset and protocol are available.
 
+The accepted smoke dataset is versioned as `m5-smoke-9063d67fc1f5` under canonical schema `1.0.0`.
+
 ## Prerequisites
 
 - Python 3.12
@@ -65,6 +67,9 @@ Required files:
 # Download and test the small Chronos-Bolt checkpoint
 .\.venv\Scripts\python.exe -m demandsense spike-chronos
 ```
+
+The smoke output includes `dataset_metadata.json`, a versioned series manifest,
+source checksums, and canonical validation evidence under `data/processed/m5/smoke/`.
 
 ## Docker
 

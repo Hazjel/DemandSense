@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed baseline scope |
-| Version | 0.2.0 |
+| Status | Accepted baseline scope |
+| Version | 0.3.0 |
 | Date | 2026-09-15 |
 
 ## 1. MVP boundary

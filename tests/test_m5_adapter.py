@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import polars as pl
@@ -59,8 +60,20 @@ def test_prepare_m5_fixture(tmp_path: Path) -> None:
     demand = pl.read_parquet(result["demand_path"])
     manifest = pl.read_parquet(result["manifest_path"])
     assert result["validation"]["status"] == "passed"
+    assert result["manifest_validation"]["status"] == "passed"
     assert demand.height == 2
     assert demand["sku_id"].unique().to_list() == ["FOODS_1_001"]
     assert demand["unit_price"].to_list() == [2.5, 2.5]
     assert demand["event_flag"].to_list() == [False, True]
+    assert demand["event_name"].to_list() == [None, "Sporting"]
     assert manifest["cohort_role"].to_list() == ["smoke"]
+    assert manifest["dataset_version"].to_list() == [result["dataset_version"]]
+
+    metadata = json.loads(Path(result["dataset_metadata_path"]).read_text())
+    assert metadata["dataset_version"] == result["dataset_version"]
+    assert metadata["schema_version"] == "1.0.0"
+    assert metadata["row_count"] == 2
+    assert metadata["series_count"] == 1
+    assert metadata["validation_status"] == "passed"
+    assert metadata["manifest_validation_status"] == "passed"
+    assert metadata["selected_series_manifest_checksum"]

@@ -2,7 +2,11 @@ from datetime import UTC, datetime
 
 import polars as pl
 
-from demandsense.data.validation import demand_segment, validate_canonical
+from demandsense.data.validation import (
+    demand_segment,
+    validate_canonical,
+    validate_series_manifest,
+)
 
 
 def _valid_frame() -> pl.DataFrame:
@@ -40,3 +44,34 @@ def test_demand_segment_boundaries() -> None:
     assert demand_segment(0.20) == "medium"
     assert demand_segment(0.60) == "medium"
     assert demand_segment(0.61) == "intermittent"
+
+
+def _valid_manifest() -> pl.DataFrame:
+    return pl.DataFrame(
+        {
+            "dataset_version": ["m5-smoke-test"],
+            "store_id": ["CA_1"],
+            "sku_id": ["ITEM_1"],
+            "zero_sales_ratio": [0.5],
+            "history_days": [1941],
+            "segment": ["medium"],
+            "selection_seed": [42],
+            "cohort_role": ["smoke"],
+            "included": [True],
+            "exclusion_reason": [None],
+        }
+    )
+
+
+def test_valid_series_manifest_passes() -> None:
+    report = validate_series_manifest(_valid_manifest())
+
+    assert report.status == "passed"
+    assert report.row_count == 1
+
+
+def test_manifest_without_dataset_version_fails() -> None:
+    report = validate_series_manifest(_valid_manifest().drop("dataset_version"))
+
+    assert report.status == "failed"
+    assert report.missing_columns == ["dataset_version"]

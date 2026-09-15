@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed contract |
-| Version | 0.2.0 |
+| Status | Accepted M0 contract |
+| Version | 1.0.0 |
 | Date | 2026-09-15 |
 | Canonical grain | One row per date, store, and SKU |
 
@@ -199,6 +199,12 @@ date_range
 row_count
 validation_status
 ```
+
+The record is persisted as `dataset_metadata.json`. M5 version identifiers use
+`m5-{profile}-{12-character digest}`, where the digest covers schema and adapter
+versions, source checksums, selected store, cohort settings, seed, and segmentation
+thresholds. The identifier therefore remains stable when the same inputs and
+configuration are reproduced.
 
 ## 10. UMKM extension and privacy
 

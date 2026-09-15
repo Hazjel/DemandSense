@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | M0 complete; M1 ready |
-| Version | 0.4.0 |
+| Version | 0.5.0 |
 | Date | 2026-09-15 |
 | Owner | Repository owner (personal name pending for public release) |
 | Delivery target | Portfolio MVP in 8 weeks, with 2 optional buffer weeks |
@@ -147,7 +147,7 @@ These decisions must be recorded before Gate A:
 
 - [x] Owner role assigned to the repository owner; personal name may be added before public release.
 - [x] Local GPU and sufficient storage availability confirmed by the project owner.
-- [x] Hardware recorded: i7-12700H, 23.63 GB RAM, RTX 3060 Laptop GPU with 6 GB VRAM, and project storage on drive D.
+- [x] Hardware recorded: i7-12700H, 23.63 GB RAM, RTX 3060 Laptop GPU with 6 GB VRAM, and 235.58 GB free on drive D at the final M0 audit.
 - [x] Initial M5 store fixed as `CA_1` before model results are observed.
 - [x] Seed fixed at `42`; zero-sales thresholds fixed at `0.20` and `0.60`.
 - [x] Local release is mandatory; hosted demo remains optional buffer work.
