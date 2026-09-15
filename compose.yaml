@@ -1,0 +1,40 @@
+services:
+  api:
+    build:
+      context: .
+    image: demandsense:local
+    command: ["uvicorn", "demandsense.api:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  dashboard:
+    image: demandsense:local
+    command:
+      [
+        "streamlit",
+        "run",
+        "src/demandsense/dashboard.py",
+        "--server.address=0.0.0.0",
+        "--server.port=8501",
+      ]
+    environment:
+      DEMANDSENSE_API_URL: http://api:8000
+    ports:
+      - "127.0.0.1:8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
