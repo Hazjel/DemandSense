@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Status | M1 complete; M2 ready |
-| Version | 0.6.0 |
+| Status | M2 complete; M3 ready |
+| Version | 0.7.0 |
 | Date | 2026-09-15 |
 | Owner | Repository owner (personal name pending for public release) |
 | Delivery target | Portfolio MVP in 8 weeks, with 2 optional buffer weeks |
@@ -103,7 +103,7 @@ The MVP is complete when all of the following are true:
 |---|---:|---|
 | M0: Planning and technical spike | Pre-week / 1-2 days | **Complete:** GPU inference and the real-data M5 smoke pipeline pass |
 | M1: Validated dataset | Week 1 | **Complete:** full eligible dataset, frozen development cohort, and quality reports available |
-| M2: Evaluation design | Week 2 | Temporal folds and segment definitions frozen |
+| M2: Evaluation design | Week 2 | **Complete:** temporal folds, segments, metrics, and leakage policy frozen |
 | M3: Baseline suite | Week 3 | Naive, statistical, and intermittent baselines evaluated |
 | M4: Challenger models | Weeks 4-5 | Global ML and at least one foundation model evaluated |
 | M5: Decision layer | Week 6 | Inventory simulation and sensitivity analysis available |
@@ -124,10 +124,14 @@ Gate A passed on 2026-09-15. Evidence is recorded in `M0_EXECUTION_REPORT.md`.
 
 ### Gate B: Start advanced modeling
 
-- Data validation passes.
-- Temporal folds are frozen.
-- Seasonal Naive results are reproducible.
-- Leakage tests pass.
+- [x] Data validation passes.
+- [x] Temporal folds are frozen.
+- [ ] Seasonal Naive results are reproducible on the full release benchmark (M3).
+- [x] M2 protocol and recursive-baseline leakage tests pass.
+
+Gate B is not yet passed. M3 may implement and run the baseline suite, but advanced
+challenger modeling remains gated until the full Seasonal Naive results are saved
+and reproduced.
 
 ### Gate C: Start application work
 

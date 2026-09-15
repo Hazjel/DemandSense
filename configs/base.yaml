@@ -15,6 +15,7 @@ data:
 forecast:
   horizon: 28
   minimum_history_days: 112
+  development_folds: 3
 
 segmentation:
   fast_max_zero_ratio: 0.20

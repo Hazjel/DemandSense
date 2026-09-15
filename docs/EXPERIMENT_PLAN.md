@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Status | Pre-registered project protocol |
-| Version | 0.2.0 |
+| Status | Frozen M2 protocol |
+| Version | 0.3.0 |
 | Date | 2026-09-15 |
 
 ## 1. Study purpose
@@ -39,6 +39,8 @@ These are testable expectations, not promised outcomes:
 - Development-cohort selection seed: recorded before tuning.
 - All cohort roles and identifiers: persisted in a versioned manifest.
 - Exclusions: insufficient history or irreparable data-quality failure only.
+- Frozen release dataset: `m5-release-9f701ae20270`, schema `1.2.0`, containing 3,044 of 3,049 `CA_1` series.
+- Eligibility cutoff: `2016-01-31`; reporting-segment reference end: `2016-04-24`.
 
 No series may be removed from the release population after model results are observed unless the reason is a pre-defined blocking data-quality rule. Any post-result exclusion must be reported as a protocol deviation.
 
@@ -55,6 +57,15 @@ Let `T` be the last target date in the frozen evaluation range.
 | Development fold 3 | `T-56` | next 28 days | Model selection |
 | Locked final test | `T-28` | final 28 days through `T` | One-time final report |
 
+For frozen protocol `m2-v1`, `T = 2016-05-22`:
+
+| Split | Training end | Evaluation interval |
+|---|---|---|
+| Development fold 1 | `2016-01-31` | `2016-02-01` through `2016-02-28` |
+| Development fold 2 | `2016-02-28` | `2016-02-29` through `2016-03-27` |
+| Development fold 3 | `2016-03-27` | `2016-03-28` through `2016-04-24` |
+| Locked final test | `2016-04-24` | `2016-04-25` through `2016-05-22` |
+
 Rules:
 
 - Random train/test splitting is prohibited.
@@ -64,6 +75,9 @@ Rules:
 - Mandatory model comparisons use the frozen release population; smaller cohorts are labeled engineering runs.
 - All models receive equivalent target history subject to declared model context limits.
 - Known-future features must be marked and justified.
+- Segment labels are fixed reporting strata and are prohibited as model features.
+- Seasonal Naive evaluation is recursive: predictions beyond an available lag use prior predictions, never actual evaluation targets.
+- Future price is lagged-only in `m2-v1`; calendar data is allowed only when known at decision time.
 
 ## 6. Model matrix
 

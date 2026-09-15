@@ -54,7 +54,11 @@ def test_prepare_m5_fixture(tmp_path: Path) -> None:
             ),
             "data": base.data.model_copy(update={"series_limit": 1}),
             "forecast": base.forecast.model_copy(
-                update={"horizon": 1, "minimum_history_days": 1}
+                update={
+                    "horizon": 1,
+                    "minimum_history_days": 1,
+                    "development_folds": 0,
+                }
             ),
         }
     )
@@ -76,7 +80,7 @@ def test_prepare_m5_fixture(tmp_path: Path) -> None:
     metadata = json.loads(Path(result["dataset_metadata_path"]).read_text())
     quality = json.loads(Path(result["quality_report_path"]).read_text())
     assert metadata["dataset_version"] == result["dataset_version"]
-    assert metadata["schema_version"] == "1.1.0"
+    assert metadata["schema_version"] == "1.2.0"
     assert metadata["row_count"] == 2
     assert metadata["series_count"] == 1
     assert metadata["validation_status"] == "passed"
@@ -122,8 +126,13 @@ def test_development_cohort_is_stratified_and_deterministic() -> None:
     canonical = pl.DataFrame(rows)
     adapter = M5Adapter(config)
 
-    first = adapter._build_manifest(canonical, "test-version", start + timedelta(days=8))
-    second = adapter._build_manifest(canonical, "test-version", start + timedelta(days=8))
+    reference_end = start + timedelta(days=8)
+    first = adapter._build_manifest(
+        canonical, "test-version", reference_end, reference_end
+    )
+    second = adapter._build_manifest(
+        canonical, "test-version", reference_end, reference_end
+    )
     included = first.filter(pl.col("included"))
 
     assert included.height == 6
@@ -135,3 +144,54 @@ def test_development_cohort_is_stratified_and_deterministic() -> None:
     assert included["sku_id"].sort().to_list() == (
         second.filter(pl.col("included"))["sku_id"].sort().to_list()
     )
+
+
+def test_eligibility_uses_earliest_development_cutoff() -> None:
+    base = load_config("configs/portfolio.yaml")
+    config = base.model_copy(
+        update={
+            "forecast": base.forecast.model_copy(
+                update={"minimum_history_days": 4}
+            )
+        }
+    )
+    start = date(2026, 1, 1)
+    rows = []
+    for day_index in range(10):
+        for sku_id, launch_day in (("early", 0), ("late", 5)):
+            active = day_index >= launch_day
+            rows.append(
+                {
+                    "date": start + timedelta(days=day_index),
+                    "store_id": "CA_1",
+                    "sku_id": sku_id,
+                    "quantity_sold": float(active),
+                    "unit_price": 1.0 if active else None,
+                }
+            )
+    canonical = pl.DataFrame(rows)
+
+    manifest = M5Adapter(config)._build_manifest(
+        canonical,
+        "test-version",
+        reference_end_date=start + timedelta(days=8),
+        eligibility_cutoff_date=start + timedelta(days=6),
+    )
+
+    eligibility = manifest.select(
+        "sku_id", "eligibility_history_days", "eligible", "exclusion_reason"
+    ).sort("sku_id")
+    assert eligibility.to_dicts() == [
+        {
+            "sku_id": "early",
+            "eligibility_history_days": 7,
+            "eligible": True,
+            "exclusion_reason": None,
+        },
+        {
+            "sku_id": "late",
+            "eligibility_history_days": 2,
+            "eligible": False,
+            "exclusion_reason": "insufficient_active_history",
+        },
+    ]

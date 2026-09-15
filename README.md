@@ -2,13 +2,13 @@
 
 DemandSense is a leakage-safe demand-forecasting and inventory decision-support project. The portfolio release uses M5 data, compares simple baselines, XGBoost, and a pretrained time-series foundation model, then evaluates the downstream inventory implications.
 
-**M0, Gate A, and M1 are complete; M2 (evaluation design) is next.** The full eligible `CA_1` release population and the frozen stratified development cohort pass raw, canonical, manifest, and quality validation. Research claims about Indonesian UMKM remain explicitly out of scope until a separate dataset and protocol are available.
+**M0 through M2 are complete; M3 (baseline suite) is next.** The full eligible `CA_1` release population, stratified development cohort, four temporal folds, segmentation, metrics, and leakage policies are frozen. Gate B remains pending until M3 produces reproducible Seasonal Naive benchmark results. Research claims about Indonesian UMKM remain explicitly out of scope until a separate dataset and protocol are available.
 
-Current schema `1.1.0` datasets:
+Current schema `1.2.0` datasets:
 
-- release: `m5-release-5429af493bf1` with 3,047 eligible series;
-- development: `m5-development-5651b48df83f` with 300 frozen series;
-- smoke: `m5-smoke-5d3455693411` with 30 fixed series.
+- release: `m5-release-9f701ae20270` with 3,044 eligible series;
+- development: `m5-development-a7ca11c1132f` with 300 frozen series;
+- smoke: `m5-smoke-3340f709371b` with 30 fixed series.
 
 ## Prerequisites
 
@@ -82,6 +82,21 @@ Each profile output includes `dataset_metadata.json`, `quality_report.json`, a
 versioned series manifest, source checksums, and canonical validation evidence
 under `data/processed/m5/{profile}/`.
 
+## Frozen M2 evaluation protocol
+
+```powershell
+# Validate dataset identity, fold boundaries, active-history eligibility, and leakage policy
+.\.venv\Scripts\python.exe -m demandsense validate-evaluation --config configs/evaluation.yaml
+
+# Materialize the local freeze evidence (artifacts are intentionally excluded from Git)
+.\.venv\Scripts\python.exe -m demandsense freeze-evaluation --config configs/evaluation.yaml --output artifacts/evaluation/m2
+```
+
+The versioned source of truth is `configs/evaluation.yaml`. It fixes three
+development folds, one locked final fold, reporting-only segments, lagged target
+features, fold-local transforms, lagged-only future prices, and recursive
+Seasonal Naive behavior.
+
 ## Docker
 
 The API and dashboard use the same image but run as separate Compose services:
@@ -96,4 +111,4 @@ docker compose up --build
 
 ## Documentation
 
-Start with [`docs/PROJECT_CHARTER.md`](docs/PROJECT_CHARTER.md), then read [`docs/SCOPE.md`](docs/SCOPE.md), [`docs/DATA_CONTRACT.md`](docs/DATA_CONTRACT.md), [`docs/M1_EXECUTION_REPORT.md`](docs/M1_EXECUTION_REPORT.md), and [`docs/EXPERIMENT_PLAN.md`](docs/EXPERIMENT_PLAN.md).
+Start with [`docs/PROJECT_CHARTER.md`](docs/PROJECT_CHARTER.md), then read [`docs/SCOPE.md`](docs/SCOPE.md), [`docs/DATA_CONTRACT.md`](docs/DATA_CONTRACT.md), [`docs/M2_EXECUTION_REPORT.md`](docs/M2_EXECUTION_REPORT.md), and [`docs/EXPERIMENT_PLAN.md`](docs/EXPERIMENT_PLAN.md).

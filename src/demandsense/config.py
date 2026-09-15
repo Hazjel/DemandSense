@@ -38,6 +38,7 @@ class DataConfig(StrictModel):
 class ForecastConfig(StrictModel):
     horizon: int = Field(default=28, ge=1)
     minimum_history_days: int = Field(default=112, ge=56)
+    development_folds: int = Field(default=3, ge=0)
 
 
 class SegmentationConfig(StrictModel):

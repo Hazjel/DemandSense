@@ -1,0 +1,71 @@
+protocol_version: m2-v1
+status: frozen
+
+dataset:
+  profile: release
+  dataset_version: m5-release-9f701ae20270
+  schema_version: 1.2.0
+  demand_path: data/processed/m5/release/demand_daily.parquet
+  metadata_path: data/processed/m5/release/dataset_metadata.json
+  series_manifest_path: data/processed/m5/release/series_manifest.parquet
+  series_manifest_checksum: 9f4c5b80f0c35a841c40ba6e1880bd4b2c28168b2a6f1d49ddce9e4de1d35092
+
+temporal:
+  horizon_days: 28
+  minimum_history_days: 112
+  folds:
+    - fold_id: development_1
+      role: development
+      train_start: 2011-01-29
+      train_end: 2016-01-31
+      evaluation_start: 2016-02-01
+      evaluation_end: 2016-02-28
+      locked: false
+    - fold_id: development_2
+      role: development
+      train_start: 2011-01-29
+      train_end: 2016-02-28
+      evaluation_start: 2016-02-29
+      evaluation_end: 2016-03-27
+      locked: false
+    - fold_id: development_3
+      role: development
+      train_start: 2011-01-29
+      train_end: 2016-03-27
+      evaluation_start: 2016-03-28
+      evaluation_end: 2016-04-24
+      locked: false
+    - fold_id: locked_final
+      role: locked_final_test
+      train_start: 2011-01-29
+      train_end: 2016-04-24
+      evaluation_start: 2016-04-25
+      evaluation_end: 2016-05-22
+      locked: true
+
+segments:
+  definition_version: pretest-zero-sales-ratio-v3
+  reference_end_date: 2016-04-24
+  usage: reporting_only
+  fast_max_zero_ratio: 0.20
+  intermittent_min_zero_ratio: 0.60
+
+feature_policy:
+  target_features_minimum_lag_days: 1
+  transforms_fit_scope: fold_training_only
+  future_calendar: allowed_if_known_at_decision_time
+  future_price: lagged_only
+  segment_as_model_feature: false
+  locked_final_target_access: after_champion_configuration_freeze
+
+seasonal_naive:
+  lags: [1, 7, 28]
+  recursive: true
+
+metrics:
+  primary: weighted_rmsse_store_bottom_level
+  secondary: [mase, wape, normalized_bias]
+  horizon_bands: [[1, 7], [8, 14], [15, 21], [22, 28]]
+  zero_denominator_policy: report_null_and_count
+  rmsse_scale_start: first_positive_training_observation
+  weight_window_days: 28

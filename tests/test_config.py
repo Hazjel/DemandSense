@@ -8,6 +8,7 @@ def test_smoke_config_resolves_project_paths() -> None:
     assert config.data.series_limit == 30
     assert config.paths.raw_dir.is_absolute()
     assert config.forecast.horizon == 28
+    assert config.forecast.development_folds == 3
 
 
 def test_release_config_has_no_series_limit() -> None:

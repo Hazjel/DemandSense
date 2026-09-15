@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Status | Accepted baseline scope |
-| Version | 0.4.0 |
+| Status | Accepted and frozen through M2 |
+| Version | 0.5.0 |
 | Date | 2026-09-15 |
 
 ## 1. MVP boundary
@@ -46,13 +46,15 @@ Additional sampling rules:
 
 The thresholds are pragmatic MVP definitions, not universal retail classifications. A future research study may replace them with a formal ADI/CV-squared taxonomy.
 
-M1 freezes the cohort reference window at `2016-04-24`, excluding the final 28
-days from eligibility and segment assignment. A series is eligible when it has
-positive observed sales and at least 112 active days by that date. Active history
-begins at the first positive sale or first available price, whichever occurs first.
-Development selection uses seed `42` and a deterministic hash ranking within each
-segment, selecting 100 eligible series from each segment. Sparse and inactive-tail
-series remain included and are reported as warnings rather than silently removed.
+M2 separates the two relevant cutoffs. Eligibility is measured at the earliest
+development training end, `2016-01-31`: a series must have positive observed sales
+and at least 112 active days by then. Segment labels are computed through
+`2016-04-24`, before the locked final 28 days, and are reporting-only model
+diagnostics. Active history begins at the first positive sale or first available
+price, whichever occurs first. Development selection uses seed `42` and a
+deterministic hash ranking within each segment, selecting 100 eligible series from
+each segment. Sparse and inactive-tail series remain included and are reported as
+warnings rather than silently removed.
 
 ## 3. Functional scope
 

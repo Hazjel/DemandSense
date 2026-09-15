@@ -9,6 +9,11 @@ import polars as pl
 from demandsense.config import load_config
 from demandsense.data.m5 import M5Adapter
 from demandsense.data.validation import validate_canonical
+from demandsense.evaluation.protocol import (
+    freeze_evaluation_protocol,
+    load_evaluation_protocol,
+    validate_evaluation_protocol,
+)
 from demandsense.spikes import format_result, spike_chronos, spike_xgboost
 
 
@@ -24,6 +29,13 @@ def _parser() -> argparse.ArgumentParser:
 
     validate_data = commands.add_parser("validate-data")
     validate_data.add_argument("--path", required=True)
+
+    validate_evaluation = commands.add_parser("validate-evaluation")
+    validate_evaluation.add_argument("--config", default="configs/evaluation.yaml")
+
+    freeze_evaluation = commands.add_parser("freeze-evaluation")
+    freeze_evaluation.add_argument("--config", default="configs/evaluation.yaml")
+    freeze_evaluation.add_argument("--output", default="artifacts/evaluation/m2")
 
     xgboost = commands.add_parser("spike-xgboost")
     xgboost.add_argument("--device", choices=["cpu", "cuda"], default="cuda")
@@ -47,6 +59,17 @@ def main() -> None:
         print(format_result(report.to_dict()))
         if report.status != "passed":
             raise SystemExit(1)
+    elif args.command == "validate-evaluation":
+        report = validate_evaluation_protocol(load_evaluation_protocol(args.config))
+        print(format_result(report))
+        if report["status"] != "passed":
+            raise SystemExit(1)
+    elif args.command == "freeze-evaluation":
+        print(
+            format_result(
+                freeze_evaluation_protocol(args.config, args.output)
+            )
+        )
     elif args.command == "spike-xgboost":
         print(format_result(spike_xgboost(device=args.device)))
     elif args.command == "spike-chronos":

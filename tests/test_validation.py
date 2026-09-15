@@ -59,6 +59,11 @@ def _valid_manifest() -> pl.DataFrame:
             "cohort_role": ["smoke"],
             "included": [True],
             "exclusion_reason": [None],
+            "eligible": [True],
+            "reference_end_date": [datetime(2026, 4, 24).date()],
+            "eligibility_cutoff_date": [datetime(2026, 1, 31).date()],
+            "eligibility_history_days": [112],
+            "eligibility_total_sales": [42.0],
         }
     )
 

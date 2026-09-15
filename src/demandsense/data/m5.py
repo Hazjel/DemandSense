@@ -15,9 +15,9 @@ from demandsense.data.quality import build_quality_report, validate_raw_m5
 from demandsense.data.validation import validate_canonical, validate_series_manifest
 
 ID_COLUMNS = ["id", "item_id", "dept_id", "cat_id", "store_id", "state_id"]
-SCHEMA_VERSION = "1.1.0"
-ADAPTER_VERSION = "m5-v2"
-COHORT_DEFINITION_VERSION = "pretest-zero-sales-ratio-v2"
+SCHEMA_VERSION = "1.2.0"
+ADAPTER_VERSION = "m5-v3"
+COHORT_DEFINITION_VERSION = "pretest-zero-sales-ratio-v3"
 SEGMENT_ORDER = ("fast", "medium", "intermittent")
 
 
@@ -104,11 +104,21 @@ class M5Adapter:
         canonical: pl.DataFrame,
         dataset_version: str,
         reference_end_date: date,
+        eligibility_cutoff_date: date,
     ) -> pl.DataFrame:
         keys = ["store_id", "sku_id"]
         reference = canonical.filter(pl.col("date") <= reference_end_date)
         full_history = canonical.group_by(keys).agg(
             pl.len().alias("history_days"),
+        )
+        eligibility_history = (
+            canonical.filter(pl.col("date") <= eligibility_cutoff_date)
+            .group_by(keys)
+            .agg(
+                pl.col("quantity_sold")
+                .sum()
+                .alias("eligibility_total_sales"),
+            )
         )
         manifest = (
             reference.group_by(keys)
@@ -130,6 +140,7 @@ class M5Adapter:
                 pl.col("unit_price").is_null().mean().alias("missing_price_ratio"),
             )
             .join(full_history, on=keys, how="left")
+            .join(eligibility_history, on=keys, how="left")
             .with_columns(
                 (
                     pl.lit(reference_end_date) - pl.col("active_start_date")
@@ -142,6 +153,13 @@ class M5Adapter:
                 )
                 .dt.total_days()
                 .alias("trailing_zero_days"),
+                (
+                    pl.lit(eligibility_cutoff_date)
+                    - pl.col("active_start_date")
+                )
+                .dt.total_days()
+                .add(1)
+                .alias("eligibility_history_days"),
             )
             .with_columns(
                 pl.when(
@@ -157,20 +175,20 @@ class M5Adapter:
                 .otherwise(pl.lit("medium"))
                 .alias("segment"),
                 (
-                    (pl.col("total_sales") > 0)
+                    (pl.col("eligibility_total_sales") > 0)
                     & (
-                        pl.col("active_history_days")
+                        pl.col("eligibility_history_days")
                         >= self.config.forecast.minimum_history_days
                     )
                 ).alias("eligible"),
             )
             .with_columns(
-                pl.when(pl.col("total_sales") <= 0)
-                .then(pl.lit("no_positive_sales_in_reference"))
+                pl.when(pl.col("eligibility_total_sales") <= 0)
+                .then(pl.lit("no_positive_sales_before_eligibility_cutoff"))
                 .when(pl.col("active_start_date").is_null())
                 .then(pl.lit("no_observed_activity_in_reference"))
                 .when(
-                    pl.col("active_history_days")
+                    pl.col("eligibility_history_days")
                     < self.config.forecast.minimum_history_days
                 )
                 .then(pl.lit("insufficient_active_history"))
@@ -244,6 +262,7 @@ class M5Adapter:
             manifest.with_columns(
                 pl.lit(dataset_version).alias("dataset_version"),
                 pl.lit(reference_end_date).alias("reference_end_date"),
+                pl.lit(eligibility_cutoff_date).alias("eligibility_cutoff_date"),
                 pl.lit(self.config.data.selection_seed).alias("selection_seed"),
                 pl.lit(self.config.data.profile).alias("cohort_role"),
             )
@@ -260,6 +279,9 @@ class M5Adapter:
                 "exclusion_reason",
                 "eligible",
                 "reference_end_date",
+                "eligibility_cutoff_date",
+                "eligibility_history_days",
+                "eligibility_total_sales",
                 "reference_history_days",
                 "active_start_date",
                 "active_history_days",
@@ -375,8 +397,15 @@ class M5Adapter:
         if max_date is None:
             raise ValueError("Canonical M5 data has no maximum date")
         reference_end_date = max_date - timedelta(days=self.config.forecast.horizon)
+        eligibility_cutoff_date = reference_end_date - timedelta(
+            days=self.config.forecast.horizon
+            * self.config.forecast.development_folds
+        )
         manifest = self._build_manifest(
-            canonical_all, dataset_version, reference_end_date
+            canonical_all,
+            dataset_version,
+            reference_end_date,
+            eligibility_cutoff_date,
         )
         included_keys = manifest.filter(pl.col("included")).select(
             "store_id", "sku_id"
@@ -443,6 +472,7 @@ class M5Adapter:
             "profile": self.config.data.profile,
             "cohort_definition_version": COHORT_DEFINITION_VERSION,
             "reference_end_date": str(reference_end_date),
+            "eligibility_cutoff_date": str(eligibility_cutoff_date),
             "smoke_cohort_manifest_checksum": (
                 manifest_checksum if self.config.data.profile == "smoke" else None
             ),

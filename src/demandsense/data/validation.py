@@ -26,6 +26,11 @@ MANIFEST_COLUMNS = {
     "cohort_role",
     "included",
     "exclusion_reason",
+    "eligible",
+    "reference_end_date",
+    "eligibility_cutoff_date",
+    "eligibility_history_days",
+    "eligibility_total_sales",
 }
 MANIFEST_NON_NULL_COLUMNS = MANIFEST_COLUMNS - {"exclusion_reason"}
 VALID_SEGMENTS = {"fast", "medium", "intermittent"}

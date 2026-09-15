@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Status | Accepted M0 contract |
-| Version | 1.1.0 |
+| Status | Accepted through M2 |
+| Version | 1.2.0 |
 | Date | 2026-09-15 |
 | Canonical grain | One row per date, store, and SKU |
 
@@ -96,7 +96,10 @@ Table name: `series_manifest`
 | `included` | Whether series is in the frozen release population |
 | `exclusion_reason` | Reason when excluded |
 | `eligible` | Whether the series passes frozen history and activity rules |
-| `reference_end_date` | Last date allowed to define eligibility and cohort segment |
+| `reference_end_date` | Last date allowed to define the reporting segment |
+| `eligibility_cutoff_date` | Earliest development training cutoff used for eligibility |
+| `eligibility_history_days` | Active days available at the eligibility cutoff |
+| `eligibility_total_sales` | Positive-sales check through the eligibility cutoff |
 | `reference_history_days` | Calendar rows available through the reference end |
 | `active_start_date` | First positive sale or available price |
 | `active_history_days` | Days from active start through the reference end |
